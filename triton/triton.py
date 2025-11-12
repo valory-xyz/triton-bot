@@ -51,11 +51,7 @@ def run_triton() -> None:  # pylint: disable=too-many-statements,too-many-locals
     for operator_name, operate_path in config["operators"].items():
         operate = OperateApp(Path(operate_path) / OPERATE)
         operate.password = OPERATE_USER_PASSWORD
-        for (
-            service
-        ) in (
-            operate.service_manager()._get_all_services()  # pylint: disable=protected-access
-        ):
+        for service in operate.service_manager().get_all_services()[0]:
             services[f"{operator_name}-{service.name}"] = TritonService(
                 operate=operate,
                 service_config_id=service.service_config_id,
@@ -143,17 +139,16 @@ Next epoch: {status['epoch_end']}"""
 
         messages = []
         for service_name, service in services.items():
-            tx_hash = service.claim_rewards()
-            if not tx_hash:
+            claimed_amount = service.claim_rewards()
+            if not claimed_amount:
                 continue
 
             messages.append(
-                f"[{service_name}] Sent the [claim transaction]({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
-                "Rewards will be sent to the Service Safe."
+                f"[{service_name}] Claimed {claimed_amount} OLAS rewards into the Master safe."
             )
 
         await update.message.reply_text(
-            text=("\n").join(messages),
+            text=("\n").join(messages) if messages else "No rewards claimed",
         )
 
     async def withdraw(
@@ -172,7 +167,7 @@ Next epoch: {status['epoch_end']}"""
                 + escape_markdown_v2(service_name)
                 + r"] "
                 + f"Sent the [withdrawal transaction]({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
-                + f"{value:g} OLAS sent from the Service Safe to [{service.withdrawal_address}]"
+                + f"{value:g} OLAS sent from the Master Safe to [{service.withdrawal_address}]"
                 + f"({GNOSISSCAN_ADDRESS_URL.format(address=service.withdrawal_address)}) #withdraw"
                 if tx_hash
                 else r"\["

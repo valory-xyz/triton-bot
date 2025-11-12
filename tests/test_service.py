@@ -260,14 +260,12 @@ class TestTritonService:
     
     def test_claim_rewards_success(self):
         """Test claim_rewards method success"""
-        mock_tx_hash = MagicMock()
-        mock_tx_hash.hex.return_value = "0xabcdef1234567890"
-        self.mock_service_manager.claim_on_chain_from_safe.return_value = mock_tx_hash
+        self.mock_service_manager.claim_on_chain_from_safe.return_value = 1234
         
         service = TritonService(self.mock_operate, "test_config_id")
         result = service.claim_rewards()
         
-        assert result == "0xabcdef1234567890"
+        assert result == 1234
         self.mock_service_manager.claim_on_chain_from_safe.assert_called_once_with(
             service_config_id="test_config_id",
             chain="gnosis"
@@ -283,7 +281,7 @@ class TestTritonService:
         service.logger.error = MagicMock()
         result = service.claim_rewards()
         
-        assert result is None
+        assert result == 0
         service.logger.error.assert_called_once()
     
     @patch.dict(os.environ, {}, clear=True)
@@ -322,56 +320,28 @@ class TestTritonService:
         service.logger.error.assert_called_once()
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
-    @patch('triton.service.transfer_erc20_from_safe')
-    @patch('triton.service.EthereumCrypto')
-    @patch('triton.service.tempfile')
     @patch('triton.service.get_olas_balance')
     @patch('triton.service.OLAS', {Chain.GNOSIS: "0x5555555555555555555555555555555555555555"})
-    def test_withdraw_rewards_success(self, mock_get_olas_balance, mock_tempfile, 
-                                     mock_ethereum_crypto, mock_transfer_erc20):
+    def test_withdraw_rewards_success(self, mock_get_olas_balance):
         """Test withdraw_rewards method success"""
         mock_get_olas_balance.return_value = 1000000000000000000  # 1 OLAS in wei
-        mock_transfer_erc20.return_value = "0xabcdef1234567890"
-        
-        # Mock tempfile
-        mock_temp_file = MagicMock()
-        mock_temp_file.name = "temp_key_file"
-        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value = mock_temp_file
-        
-        # Mock crypto
-        mock_crypto_instance = MagicMock()
-        mock_ethereum_crypto.return_value = mock_crypto_instance
+        self.mock_master_wallet.transfer.return_value = "0xabcdef1234567890"
         
         service = TritonService(self.mock_operate, "test_config_id")
         result = service.withdraw_rewards()
         
         assert result == ("0xabcdef1234567890", 1.0)
-        mock_transfer_erc20.assert_called_once()
-        mock_temp_file.write.assert_called_once_with(b"test_private_key")
-        mock_temp_file.flush.assert_called_once()
+        self.mock_master_wallet.transfer.assert_called_once()
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
-    @patch('triton.service.transfer_erc20_from_safe')
-    @patch('triton.service.EthereumCrypto')
-    @patch('triton.service.tempfile')
     @patch('triton.service.get_olas_balance')
     @patch('triton.service.OLAS', {Chain.GNOSIS: "0x5555555555555555555555555555555555555555"})
     @patch('triton.service.traceback')
-    def test_withdraw_rewards_transfer_exception(self, mock_traceback, mock_get_olas_balance, 
-                                               mock_tempfile, mock_ethereum_crypto, mock_transfer_erc20):
+    def test_withdraw_rewards_transfer_exception(self, mock_traceback, mock_get_olas_balance):
         """Test withdraw_rewards method with transfer exception"""
         mock_get_olas_balance.return_value = 1000000000000000000  # 1 OLAS in wei
-        mock_transfer_erc20.side_effect = Exception("Transfer failed")
+        self.mock_master_wallet.transfer.side_effect = Exception("Transfer failed")
         mock_traceback.format_exc.return_value = "Traceback info"
-        
-        # Mock tempfile
-        mock_temp_file = MagicMock()
-        mock_temp_file.name = "temp_key_file"
-        mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value = mock_temp_file
-        
-        # Mock crypto
-        mock_crypto_instance = MagicMock()
-        mock_ethereum_crypto.return_value = mock_crypto_instance
         
         service = TritonService(self.mock_operate, "test_config_id")
         service.logger.error = MagicMock()

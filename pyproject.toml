@@ -9,7 +9,7 @@ readme = "README.md"
 python = "<3.12,>=3.9"
 python-telegram-bot = {extras = ["job-queue"], version = "^21.7"}
 click = "^8.1.7"
-olas-operate-middleware = "^0.8.2"
+olas-operate-middleware = "^0.11.4"
 pytz = "^2025.2"
 
 [tool.poetry.group.dev.dependencies]

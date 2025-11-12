@@ -79,9 +79,9 @@ class TestTritonBot:
                 mock_operate_service = Mock()
                 mock_operate_service.name = "service"
                 mock_operate_service.service_config_id = "service1"
-                mock_operate.service_manager.return_value._get_all_services.return_value = [
+                mock_operate.service_manager.return_value.get_all_services.return_value = [[
                     mock_operate_service,
-                ]
+                ]]
                 mock_operate_app.return_value = mock_operate
 
                 # Import and call run_triton to capture all handlers
@@ -133,7 +133,7 @@ class TestTritonBot:
             "master_eoa_native_balance": 1.5,
             "master_safe_native_balance": 3.0,
         }
-        service.claim_rewards.return_value = "0x123abc456def"
+        service.claim_rewards.return_value = 12445
         service.withdraw_rewards.return_value = ("0x789ghi012jkl", 50.0)
         service.agent_address = "0xagent123"
         service.service_safe = "0xsafe456"
@@ -263,8 +263,7 @@ Total rewards = 21 OLAS [$52.5]""",
         
         # Verify the call
         mock_update.message.reply_text.assert_called_once_with(
-            text="""[operator1-service] Sent the [claim transaction](https://gnosisscan.io/tx/0x123abc456def). Rewards will be sent to the Service Safe.
-[operator2-service] Sent the [claim transaction](https://gnosisscan.io/tx/0x123abc456def). Rewards will be sent to the Service Safe."""
+            text="""[operator1-service] Claimed 12445 OLAS rewards into the Master safe.\n[operator2-service] Claimed 12445 OLAS rewards into the Master safe."""
         )
 
     def test_withdraw_handler(self, mock_triton_app, mock_update):
@@ -279,9 +278,9 @@ Total rewards = 21 OLAS [$52.5]""",
         mock_update.message.reply_text.assert_called_once_with(
             disable_web_page_preview=True,
             parse_mode=ParseMode.MARKDOWN,
-            text="""\\[operator1-service] Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Service Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw
+            text="""\\[operator1-service] Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Master Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw
 
-\\[operator2-service] Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Service Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw""",
+\\[operator2-service] Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Master Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw""",
         )
 
     def test_slots_handler(self, mock_triton_app, mock_update):
