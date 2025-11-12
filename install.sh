@@ -6,6 +6,9 @@ POETRY_PATH=$(which poetry)
 INPUT_FILE="triton.service.template"
 OUTPUT_FILE="triton.service"
 
+# Install dependencies
+$POETRY_PATH install
+
 # Create triton.service
 sed -e "s/{user}/$USER_NAME/g" \
     -e "s|{repo_path}|$REPO_PATH|g" \
