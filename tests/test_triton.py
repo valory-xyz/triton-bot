@@ -321,22 +321,39 @@ Total rewards = 21 OLAS [$52.5]""",
         # Verify the call
         mock_update.message.reply_text.assert_called_once_with("No scheduled jobs")
 
-    @pytest.mark.parametrize("agent_balance,safe_balance,agent_threshold,safe_threshold,expected_messages", [
-        # Both balances below threshold
-        (0.05, 0.5, 0.1, 1.0, 4),  # One call per operator
-        # Only agent balance below threshold
-        (0.05, 2.0, 0.1, 1.0, 2),  # One call per operator
-        # Only safe balance below threshold
-        (0.5, 0.5, 0.1, 1.0, 2),  # One call per operator
-        # Both balances above threshold
-        (0.5, 2.0, 0.1, 1.0, 0),
-        # Edge case: exactly at threshold
-        (0.1, 1.0, 0.1, 1.0, 0),
-        # Edge case: just below threshold
-        (0.099, 0.999, 0.1, 1.0, 4),  # One call per operator
-    ])
-    def test_balance_check_job_low_balance(self, mock_triton_app, mock_context, mock_service, 
-                                          agent_balance, safe_balance, agent_threshold, safe_threshold, expected_messages, mock_config):
+    @pytest.mark.parametrize(
+        "agent_balance,safe_balance,master_balance,agent_threshold,safe_threshold,master_threshold,expected_messages",
+        [
+            # All monitored balances below their thresholds
+            (0.05, 0.5, 4.0, 0.1, 1.0, 5.0, 6),
+            # Only agent balance below threshold
+            (0.05, 2.0, 6.0, 0.1, 1.0, 5.0, 2),
+            # Only service safe balance below threshold
+            (0.5, 0.5, 6.0, 0.1, 1.0, 5.0, 2),
+            # Only master safe balance below threshold
+            (0.5, 2.0, 4.0, 0.1, 1.0, 5.0, 2),
+            # All balances above thresholds
+            (0.5, 2.0, 6.0, 0.1, 1.0, 5.0, 0),
+            # Edge case: exactly at thresholds
+            (0.1, 1.0, 5.0, 0.1, 1.0, 5.0, 0),
+            # Edge case: just below thresholds
+            (0.099, 0.999, 4.999, 0.1, 1.0, 5.0, 6),
+        ],
+    )
+    def test_balance_check_job_low_balance(
+        self,
+        mock_triton_app,
+        mock_context,
+        mock_service,
+        agent_balance,
+        safe_balance,
+        master_balance,
+        agent_threshold,
+        safe_threshold,
+        master_threshold,
+        expected_messages,
+        mock_config,
+    ):
         """Test balance_check job with different balance scenarios using the mock_triton_app fixture"""
         # Configure the mock service with the test balances
         mock_service.check_balance.return_value = {
@@ -344,13 +361,14 @@ Total rewards = 21 OLAS [$52.5]""",
             "service_safe_native_balance": safe_balance,
             "service_safe_olas_balance": 100.0,
             "master_eoa_native_balance": 1.5,
-            "master_safe_native_balance": 3.0,
+            "master_safe_native_balance": master_balance,
         }
-        
+
         # Mock the thresholds in the environment
         with patch.dict(os.environ, {
             'AGENT_BALANCE_THRESHOLD': str(agent_threshold),
             'SAFE_BALANCE_THRESHOLD': str(safe_threshold),
+            'MASTER_SAFE_BALANCE_THRESHOLD': str(master_threshold),
         }):
             # Reload constants to pick up new thresholds
             import importlib
@@ -386,6 +404,15 @@ Total rewards = 21 OLAS [$52.5]""",
                         f"[{operator}-service] [Service Safe](https://gnosisscan.io/address/{mock_service.service_safe}) balance is {safe_balance:g} xDAI"
                         in sent_messages
                     ), f"Expected safe balance message for balance {safe_balance}"
+
+            # Check if master safe message was sent (when master_balance < master_threshold)
+            if master_balance < master_threshold:
+                master_safe_address = mock_service.master_wallet.safes[Chain.GNOSIS]
+                for operator in mock_config['operators']:
+                    assert (
+                        f"[{operator}-service] [Master Safe](https://gnosisscan.io/address/{master_safe_address}) balance is {master_balance:g} xDAI"
+                        in sent_messages
+                    ), f"Expected master safe message for balance {master_balance}"
 
             # Verify message formatting
             for call in call_args_list:
@@ -426,4 +453,3 @@ Total rewards = 21 OLAS [$52.5]""",
                 "parse_mode": ParseMode.MARKDOWN,
                 "disable_web_page_preview": True,
             }
-
