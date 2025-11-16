@@ -24,6 +24,7 @@ from triton.constants import (
     CHAT_ID,
     GNOSISSCAN_ADDRESS_URL,
     GNOSISSCAN_TX_URL,
+    MASTER_SAFE_BALANCE_THRESHOLD,
     LOCAL_TIMEZONE,
     MANUAL_CLAIM,
     OPERATE_USER_PASSWORD,
@@ -240,6 +241,15 @@ Next epoch: {status['epoch_end']}"""
             balances = triton_service.check_balance()
             agent_native_balance = balances["agent_eoa_native_balance"]
             safe_native_balance = balances["service_safe_native_balance"]
+            master_safe_native_balance = balances["master_safe_native_balance"]
+
+            if triton_service.master_wallet.safes is None:
+                logger.error("Master wallet safes not found for service %s", service_name)
+                continue
+
+            master_safe_address = triton_service.master_wallet.safes[
+                Chain.from_string(triton_service.service.home_chain)
+            ]
 
             if agent_native_balance < AGENT_BALANCE_THRESHOLD:
                 message = f"[{service_name}] [Agent EOA]({GNOSISSCAN_ADDRESS_URL.format(address=triton_service.agent_address)}) balance is {agent_native_balance:g} xDAI"  # noqa: E501
@@ -252,6 +262,18 @@ Next epoch: {status['epoch_end']}"""
 
             if safe_native_balance < SAFE_BALANCE_THRESHOLD:
                 message = f"[{service_name}] [Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=triton_service.service_safe)}) balance is {safe_native_balance:g} xDAI"  # noqa: E501
+                await context.bot.send_message(
+                    chat_id=CHAT_ID,
+                    text=message,
+                    parse_mode=ParseMode.MARKDOWN,
+                    disable_web_page_preview=True,
+                )
+
+            if master_safe_native_balance < MASTER_SAFE_BALANCE_THRESHOLD:
+                message = (
+                    f"[{service_name}] [Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=master_safe_address)}) "
+                    f"balance is {master_safe_native_balance:g} xDAI"
+                )
                 await context.bot.send_message(
                     chat_id=CHAT_ID,
                     text=message,
