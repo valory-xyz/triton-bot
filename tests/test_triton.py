@@ -308,6 +308,42 @@ Total rewards = 21 OLAS [$52.5]""",
 [Expert 7 (10k OLAS)] 26 available slots"""
         )
 
+    def test_ip_handler(self, mock_triton_app, mock_update):
+        """Test ip handler using the mock_triton_app fixture"""
+        ip_handler = mock_triton_app('ip_address')
+
+        class MockResponse:
+            """Mock aiohttp response"""
+
+            async def text(self):
+                return "1.2.3.4"
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        class MockSession:
+            """Mock aiohttp ClientSession"""
+
+            def get(self, url):
+                assert url == "https://api.ipify.org"
+                return MockResponse()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch('triton.triton.aiohttp.ClientSession', return_value=MockSession()):
+            asyncio.run(ip_handler(mock_update, None))
+
+        mock_update.message.reply_text.assert_called_once_with(
+            text="Public IP address: 1.2.3.4"
+        )
+
     def test_scheduled_jobs_handler_empty(self, mock_triton_app, mock_update, mock_context):
         """Test scheduled_jobs handler with no jobs using the mock_triton_app fixture"""
         mock_context.job_queue.jobs.return_value = []

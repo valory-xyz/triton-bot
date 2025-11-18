@@ -5,6 +5,7 @@ import logging
 import typing as t
 from pathlib import Path
 
+import aiohttp
 import dotenv
 import pytz
 import yaml
@@ -203,6 +204,19 @@ Next epoch: {status['epoch_end']}"""
             text=("\n").join(messages),
         )
 
+    async def ip_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Reply with the server public IP address."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://api.ipify.org") as response:
+                    ip = (await response.text()).strip()
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Failed to get public IP: %s", exc)
+            ip = "Unavailable"
+
+        if update.message:
+            await update.message.reply_text(text=f"Public IP address: {ip}")
+
     async def scheduled_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message:
             logger.error("Cannot send message, update.message is None")
@@ -293,6 +307,7 @@ Next epoch: {status['epoch_end']}"""
                 ("withdraw", "Withdraw rewards"),
                 ("slots", "Check available staking slots"),
                 ("jobs", "Check the scheduled jobs"),
+                ("ip", "Get the bot public IP"),
             ]
         )
 
@@ -353,6 +368,7 @@ Next epoch: {status['epoch_end']}"""
     app.add_handler(CommandHandler("withdraw", withdraw))
     app.add_handler(CommandHandler("slots", slots))
     app.add_handler(CommandHandler("jobs", scheduled_jobs))
+    app.add_handler(CommandHandler("ip", ip_address))
 
     # Add tasks
     job_queue.run_once(start, when=3)  # in 3 seconds
