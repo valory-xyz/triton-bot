@@ -132,6 +132,7 @@ class TestTritonBot:
             "service_safe_olas_balance": 100.0,
             "master_eoa_native_balance": 1.5,
             "master_safe_native_balance": 3.0,
+            "master_safe_olas_balance": 10.0,
         }
         service.claim_rewards.return_value = 12445
         service.withdraw_rewards.return_value = ("0x789ghi012jkl", 50.0)
@@ -244,13 +245,13 @@ Total rewards = 21 OLAS [$52.5]""",
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
 [Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
-[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI
+[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS
 
 \\[operator2-service]
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
 [Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
-[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI"""
+[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS"""
         )
 
     def test_claim_handler(self, mock_triton_app, mock_update):
