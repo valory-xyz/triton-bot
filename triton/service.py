@@ -152,9 +152,11 @@ class TritonService:
         master_eoa_native_balance = get_native_balance(
             self.master_wallet.crypto.address
         )
-        master_safe_native_balance = get_native_balance(
-            self.master_wallet.safes[Chain.from_string(self.service.home_chain)]  # type: ignore[attr-defined]
-        )
+        master_safe_address = self.master_wallet.safes[  # type: ignore[attr-defined]
+            Chain.from_string(self.service.home_chain)
+        ]
+        master_safe_native_balance = get_native_balance(master_safe_address)
+        master_safe_olas_balance = get_olas_balance(master_safe_address) / 1e18
         service_safe_olas_balance = get_olas_balance(self.service_safe) / 1e18
 
         self.logger.info(
@@ -174,6 +176,7 @@ class TritonService:
             "service_safe_native_balance": service_safe_native_balance,
             "master_eoa_native_balance": master_eoa_native_balance,
             "master_safe_native_balance": master_safe_native_balance,
+            "master_safe_olas_balance": master_safe_olas_balance,
             "service_safe_olas_balance": service_safe_olas_balance,
         }
 

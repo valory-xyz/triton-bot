@@ -100,6 +100,7 @@ Next epoch: {status['epoch_end']}"""
             safe_olas_balance = balances["service_safe_olas_balance"]
             master_eoa_native_balance = balances["master_eoa_native_balance"]
             master_safe_native_balance = balances["master_safe_native_balance"]
+            master_safe_olas_balance = balances["master_safe_olas_balance"]
 
             if service.master_wallet.safes is None:
                 raise ValueError("Master wallet safes not found")
@@ -111,7 +112,7 @@ Next epoch: {status['epoch_end']}"""
                 + f"\n[Agent EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.agent_address)}) = {agent_native_balance:g} xDAI"  # noqa: E501
                 + f"\n[Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.service_safe)}) = {safe_native_balance:g} xDAI  {safe_olas_balance:g} OLAS"  # noqa: E501
                 + f"\n[Master EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.crypto.address)}) = {master_eoa_native_balance:g} xDAI"  # noqa: E501
-                + f"\n[Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.safes[Chain.from_string(service.service.home_chain)])}) = {master_safe_native_balance:g} xDAI"  # type: ignore[attr-defined]  # noqa: E501
+                + f"\n[Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.safes[Chain.from_string(service.service.home_chain)])}) = {master_safe_native_balance:g} xDAI  {master_safe_olas_balance:g} OLAS"  # type: ignore[attr-defined]  # noqa: E501
             )
 
             messages.append(message)
