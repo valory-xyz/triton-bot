@@ -66,9 +66,12 @@ def run_triton() -> None:  # pylint: disable=too-many-statements,too-many-locals
     ) -> None:
         messages = []
         total_rewards = 0.0
+        master_safe_olas = 0.0
         for service_name, service in services.items():
             status = service.get_staking_status()
             total_rewards += float(status["accrued_rewards"].split(" ")[0])
+            balances = service.check_balance()
+            master_safe_olas += balances["master_safe_olas_balance"]
             messages.append(
                 f"[{service_name}] {status['accrued_rewards']} "
                 f"""[{status['mech_requests_this_epoch']}/{status['required_mech_requests']}]
@@ -76,9 +79,12 @@ Staking program: {status['metadata']['name']}
 Next epoch: {status['epoch_end']}"""
             )
 
+        combined_rewards = total_rewards + master_safe_olas
         olas_price = get_olas_price()
-        rewards_value = total_rewards * olas_price if olas_price else None
-        message = f"Total rewards = {total_rewards:g} OLAS"
+        rewards_value = combined_rewards * olas_price if olas_price else None
+        message = f"Total rewards = {combined_rewards:g} OLAS"
+        if master_safe_olas:
+            message += f" ({total_rewards:g} accrued + {master_safe_olas:g} in master safes)"
         if rewards_value:
             message += f" [${rewards_value:g}]"
         messages.append(message)
