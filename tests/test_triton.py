@@ -132,6 +132,7 @@ class TestTritonBot:
             "service_safe_olas_balance": 100.0,
             "master_eoa_native_balance": 1.5,
             "master_safe_native_balance": 3.0,
+            "master_safe_olas_balance": 10.0,
         }
         service.claim_rewards.return_value = 12445
         service.withdraw_rewards.return_value = ("0x789ghi012jkl", 50.0)
@@ -225,7 +226,7 @@ Next epoch: 2025-07-21 12:00:00
 Staking program: Staking Program 1
 Next epoch: 2025-07-21 12:00:00
 
-Total rewards = 21 OLAS [$52.5]""",
+Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) [$577.5]""",
         )
 
     def test_balance_handler(self, mock_triton_app, mock_update):
@@ -244,13 +245,13 @@ Total rewards = 21 OLAS [$52.5]""",
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
 [Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
-[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI
+[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS
 
 \\[operator2-service]
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
 [Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
-[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI"""
+[Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS"""
         )
 
     def test_claim_handler(self, mock_triton_app, mock_update):
@@ -306,6 +307,42 @@ Total rewards = 21 OLAS [$52.5]""",
 [Expert 5 (10k OLAS)] 26 available slots
 [Expert 6 (1k OLAS)] 40 available slots
 [Expert 7 (10k OLAS)] 26 available slots"""
+        )
+
+    def test_ip_handler(self, mock_triton_app, mock_update):
+        """Test ip handler using the mock_triton_app fixture"""
+        ip_handler = mock_triton_app('ip_address')
+
+        class MockResponse:
+            """Mock aiohttp response"""
+
+            async def text(self):
+                return "1.2.3.4"
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        class MockSession:
+            """Mock aiohttp ClientSession"""
+
+            def get(self, url):
+                assert url == "https://api.ipify.org"
+                return MockResponse()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        with patch('triton.triton.aiohttp.ClientSession', return_value=MockSession()):
+            asyncio.run(ip_handler(mock_update, None))
+
+        mock_update.message.reply_text.assert_called_once_with(
+            text="Public IP address: 1.2.3.4"
         )
 
     def test_scheduled_jobs_handler_empty(self, mock_triton_app, mock_update, mock_context):

@@ -5,6 +5,7 @@ import logging
 import typing as t
 from pathlib import Path
 
+import aiohttp
 import dotenv
 import pytz
 import yaml
@@ -65,9 +66,18 @@ def run_triton() -> None:  # pylint: disable=too-many-statements,too-many-locals
     ) -> None:
         messages = []
         total_rewards = 0.0
+        master_safe_olas = 0.0
+        agent_safe_olas = 0.0
+        master_safe_addresses: set[str] = set()
         for service_name, service in services.items():
             status = service.get_staking_status()
             total_rewards += float(status["accrued_rewards"].split(" ")[0])
+            balances = service.check_balance()
+            master_safe_address = service.master_wallet.safes[Chain.from_string(service.service.home_chain)]
+            if master_safe_address not in master_safe_addresses:
+                master_safe_addresses.add(master_safe_address)
+                master_safe_olas += balances["master_safe_olas_balance"]
+            agent_safe_olas += balances["service_safe_olas_balance"]
             messages.append(
                 f"[{service_name}] {status['accrued_rewards']} "
                 f"""[{status['mech_requests_this_epoch']}/{status['required_mech_requests']}]
@@ -75,9 +85,19 @@ Staking program: {status['metadata']['name']}
 Next epoch: {status['epoch_end']}"""
             )
 
+        combined_rewards = total_rewards + master_safe_olas + agent_safe_olas
         olas_price = get_olas_price()
-        rewards_value = total_rewards * olas_price if olas_price else None
-        message = f"Total rewards = {total_rewards:g} OLAS"
+        rewards_value = combined_rewards * olas_price if olas_price else None
+        message = f"Total rewards = {combined_rewards:g} OLAS"
+        breakdown_parts = []
+        if total_rewards:
+            breakdown_parts.append(f"{total_rewards:g} accrued")
+        if agent_safe_olas:
+            breakdown_parts.append(f"{agent_safe_olas:g} in agent safes")
+        if master_safe_olas:
+            breakdown_parts.append(f"{master_safe_olas:g} in master safes")
+        if breakdown_parts:
+            message += " (" + " + ".join(breakdown_parts) + ")"
         if rewards_value:
             message += f" [${rewards_value:g}]"
         messages.append(message)
@@ -99,6 +119,7 @@ Next epoch: {status['epoch_end']}"""
             safe_olas_balance = balances["service_safe_olas_balance"]
             master_eoa_native_balance = balances["master_eoa_native_balance"]
             master_safe_native_balance = balances["master_safe_native_balance"]
+            master_safe_olas_balance = balances["master_safe_olas_balance"]
 
             if service.master_wallet.safes is None:
                 raise ValueError("Master wallet safes not found")
@@ -110,7 +131,7 @@ Next epoch: {status['epoch_end']}"""
                 + f"\n[Agent EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.agent_address)}) = {agent_native_balance:g} xDAI"  # noqa: E501
                 + f"\n[Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.service_safe)}) = {safe_native_balance:g} xDAI  {safe_olas_balance:g} OLAS"  # noqa: E501
                 + f"\n[Master EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.crypto.address)}) = {master_eoa_native_balance:g} xDAI"  # noqa: E501
-                + f"\n[Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.safes[Chain.from_string(service.service.home_chain)])}) = {master_safe_native_balance:g} xDAI"  # type: ignore[attr-defined]  # noqa: E501
+                + f"\n[Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.safes[Chain.from_string(service.service.home_chain)])}) = {master_safe_native_balance:g} xDAI  {master_safe_olas_balance:g} OLAS"  # type: ignore[attr-defined]  # noqa: E501
             )
 
             messages.append(message)
@@ -203,6 +224,19 @@ Next epoch: {status['epoch_end']}"""
             text=("\n").join(messages),
         )
 
+    async def ip_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Reply with the server public IP address."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://api.ipify.org") as response:
+                    ip = (await response.text()).strip()
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Failed to get public IP: %s", exc)
+            ip = "Unavailable"
+
+        if update.message:
+            await update.message.reply_text(text=f"Public IP address: {ip}")
+
     async def scheduled_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message:
             logger.error("Cannot send message, update.message is None")
@@ -293,6 +327,7 @@ Next epoch: {status['epoch_end']}"""
                 ("withdraw", "Withdraw rewards"),
                 ("slots", "Check available staking slots"),
                 ("jobs", "Check the scheduled jobs"),
+                ("ip", "Get the bot public IP"),
             ]
         )
 
@@ -353,6 +388,7 @@ Next epoch: {status['epoch_end']}"""
     app.add_handler(CommandHandler("withdraw", withdraw))
     app.add_handler(CommandHandler("slots", slots))
     app.add_handler(CommandHandler("jobs", scheduled_jobs))
+    app.add_handler(CommandHandler("ip", ip_address))
 
     # Add tasks
     job_queue.run_once(start, when=3)  # in 3 seconds
