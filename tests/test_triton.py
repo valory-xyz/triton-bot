@@ -226,7 +226,7 @@ Next epoch: 2025-07-21 12:00:00
 Staking program: Staking Program 1
 Next epoch: 2025-07-21 12:00:00
 
-Total rewards = 241 OLAS (21 accrued + 200 in agent safes + 20 in master safes) [$602.5]""",
+Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) [$577.5]""",
         )
 
     def test_balance_handler(self, mock_triton_app, mock_update):
