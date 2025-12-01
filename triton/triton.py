@@ -25,9 +25,9 @@ from triton.constants import (
     CHAT_ID,
     GNOSISSCAN_ADDRESS_URL,
     GNOSISSCAN_TX_URL,
-    MASTER_SAFE_BALANCE_THRESHOLD,
     LOCAL_TIMEZONE,
     MANUAL_CLAIM,
+    MASTER_SAFE_BALANCE_THRESHOLD,
     OPERATE_USER_PASSWORD,
     SAFE_BALANCE_THRESHOLD,
     TELEGRAM_TOKEN,
@@ -60,9 +60,9 @@ def run_triton() -> None:  # pylint: disable=too-many-statements,too-many-locals
             )
 
     # Commands
-    async def staking_status(
+    async def staking_status(  # pylint: disable=unused-argument,too-many-locals
         update: Update,
-        context: ContextTypes.DEFAULT_TYPE,  # pylint: disable=unused-argument
+        context: ContextTypes.DEFAULT_TYPE,
     ) -> None:
         messages = []
         total_rewards = 0.0
@@ -73,7 +73,9 @@ def run_triton() -> None:  # pylint: disable=too-many-statements,too-many-locals
             status = service.get_staking_status()
             total_rewards += float(status["accrued_rewards"].split(" ")[0])
             balances = service.check_balance()
-            master_safe_address = service.master_wallet.safes[Chain.from_string(service.service.home_chain)]
+            master_safe_address = service.master_wallet.safes[
+                Chain.from_string(service.service.home_chain)  # type: ignore[attr-defined]
+            ]
             if master_safe_address not in master_safe_addresses:
                 master_safe_addresses.add(master_safe_address)
                 master_safe_olas += balances["master_safe_olas_balance"]
@@ -170,7 +172,7 @@ Next epoch: {status['epoch_end']}"""
             )
 
         await update.message.reply_text(
-            text=("\n").join(messages) if messages else "No rewards claimed",
+            text=("\n\n").join(messages) if messages else "No rewards claimed",
         )
 
     async def withdraw(
@@ -183,20 +185,24 @@ Next epoch: {status['epoch_end']}"""
 
         messages = []
         for service_name, service in services.items():
-            tx_hash, value = service.withdraw_rewards()
-            message = (
-                r"\["
-                + escape_markdown_v2(service_name)
-                + r"] "
-                + f"Sent the [withdrawal transaction]({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
-                + f"{value:g} OLAS sent from the Master Safe to [{service.withdrawal_address}]"
-                + f"({GNOSISSCAN_ADDRESS_URL.format(address=service.withdrawal_address)}) #withdraw"
-                if tx_hash
-                else r"\["
-                + escape_markdown_v2(service_name)
-                + r"] "
-                + "Cannot withdraw rewards"
-            )
+            withdrawals = service.withdraw_rewards()
+            if withdrawals:
+                for tx_hash, value, source in withdrawals:
+                    message = (
+                        r"\["
+                        + escape_markdown_v2(service_name)
+                        + r"] "
+                        + f"Sent the [withdrawal transaction]({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
+                        + f"{value:g} OLAS sent from the {source} to [{service.withdrawal_address}]"
+                        + f"({GNOSISSCAN_ADDRESS_URL.format(address=service.withdrawal_address)}) #withdraw"
+                    )
+            else:
+                message = (
+                    r"\["
+                    + escape_markdown_v2(service_name)
+                    + r"] "
+                    + "Cannot withdraw rewards"
+                )
 
             messages.append(message)
 
@@ -224,7 +230,9 @@ Next epoch: {status['epoch_end']}"""
             text=("\n").join(messages),
         )
 
-    async def ip_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def ip_address(  # pylint: disable=unused-argument
+        update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
         """Reply with the server public IP address."""
         try:
             async with aiohttp.ClientSession() as session:
@@ -278,11 +286,13 @@ Next epoch: {status['epoch_end']}"""
             master_safe_native_balance = balances["master_safe_native_balance"]
 
             if triton_service.master_wallet.safes is None:
-                logger.error("Master wallet safes not found for service %s", service_name)
+                logger.error(
+                    "Master wallet safes not found for service %s", service_name
+                )
                 continue
 
             master_safe_address = triton_service.master_wallet.safes[
-                Chain.from_string(triton_service.service.home_chain)
+                Chain.from_string(triton_service.service.home_chain)  # type: ignore[attr-defined]
             ]
 
             if agent_native_balance < AGENT_BALANCE_THRESHOLD:
@@ -346,22 +356,28 @@ Next epoch: {status['epoch_end']}"""
 
         # Withdraw
         for service_name, service in services.items():
-            tx_hash, value = service.withdraw_rewards()
-            message = (
-                r"\["
-                + escape_markdown_v2(service_name)
-                + r"] "
-                + f"(Autoclaim) Sent the [withdrawal transaction]({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
-                + f"{value:g} OLAS sent from the Safe to [{service.withdrawal_address}]"
-                + f"({GNOSISSCAN_ADDRESS_URL.format(address=service.withdrawal_address)}) #withdraw"
-                if tx_hash
-                else r"\["
-                + escape_markdown_v2(service_name)
-                + r"] "
-                + "(Autoclaim) Cannot withdraw rewards"
-            )
+            withdrawals = service.withdraw_rewards()
+            if withdrawals:
+                for tx_hash, value, source in withdrawals:
+                    message = (
+                        r"\["
+                        + escape_markdown_v2(service_name)
+                        + r"] "
+                        + "(Autoclaim) Sent the [withdrawal transaction]"
+                        + f"({GNOSISSCAN_TX_URL.format(tx_hash=tx_hash)}). "
+                        + f"{value:g} OLAS sent from the {source} to [{service.withdrawal_address}]"
+                        + f"({GNOSISSCAN_ADDRESS_URL.format(address=service.withdrawal_address)}) #withdraw"
+                    )
+                    messages.append(message)
+            else:
+                message = (
+                    r"\["
+                    + escape_markdown_v2(service_name)
+                    + r"] "
+                    + "(Autoclaim) Cannot withdraw rewards"
+                )
 
-            messages.append(message)
+                messages.append(message)
 
         if not messages:
             logger.info("No rewards to withdraw")

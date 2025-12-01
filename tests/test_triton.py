@@ -135,7 +135,7 @@ class TestTritonBot:
             "master_safe_olas_balance": 10.0,
         }
         service.claim_rewards.return_value = 12445
-        service.withdraw_rewards.return_value = ("0x789ghi012jkl", 50.0)
+        service.withdraw_rewards.return_value = [("0x789ghi012jkl", 50.0, "Master Safe")]
         service.agent_address = "0xagent123"
         service.service_safe = "0xsafe456"
         service.master_wallet.crypto.address = "0xmaster789"
@@ -264,7 +264,9 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
         
         # Verify the call
         mock_update.message.reply_text.assert_called_once_with(
-            text="""[operator1-service] Claimed 12445 OLAS rewards into the Master safe.\n[operator2-service] Claimed 12445 OLAS rewards into the Master safe."""
+            text="""[operator1-service] Claimed 12445 OLAS rewards into the Master safe.
+
+[operator2-service] Claimed 12445 OLAS rewards into the Master safe."""
         )
 
     def test_withdraw_handler(self, mock_triton_app, mock_update):
@@ -484,9 +486,9 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
             call_kwargs = call_args_list[0].kwargs
             assert call_kwargs == {
                 "chat_id": call_kwargs['chat_id'],
-                "text": f"""\\[operator1-service] (Autoclaim) Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw
+                "text": f"""\\[operator1-service] (Autoclaim) Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Master Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw
 
-\\[operator2-service] (Autoclaim) Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw""",
+\\[operator2-service] (Autoclaim) Sent the [withdrawal transaction](https://gnosisscan.io/tx/0x789ghi012jkl). 50 OLAS sent from the Master Safe to [0xwithdraw345](https://gnosisscan.io/address/0xwithdraw345) #withdraw""",
                 "parse_mode": ParseMode.MARKDOWN,
                 "disable_web_page_preview": True,
             }

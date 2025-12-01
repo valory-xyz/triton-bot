@@ -5,7 +5,7 @@ This module defines the TritonService class, which handles the operations of the
 import logging
 import os
 import traceback
-from typing import Optional, Tuple, cast
+from typing import List, Optional, Tuple, cast
 
 import dotenv
 from operate.cli import OperateApp
@@ -14,8 +14,10 @@ from operate.data.contracts.mech_activity.contract import MechActivityContract
 from operate.data.contracts.requester_activity_checker.contract import (
     RequesterActivityCheckerContract,
 )
+from operate.ledger import get_default_ledger_api
 from operate.ledger.profiles import OLAS, get_staking_contract
 from operate.operate_types import Chain, LedgerType
+from operate.utils.gnosis import transfer_erc20_from_safe
 
 from triton.chain import get_native_balance, get_olas_balance, get_staking_status
 
@@ -152,8 +154,8 @@ class TritonService:
         master_eoa_native_balance = get_native_balance(
             self.master_wallet.crypto.address
         )
-        master_safe_address = self.master_wallet.safes[  # type: ignore[attr-defined]
-            Chain.from_string(self.service.home_chain)
+        master_safe_address = self.master_wallet.safes[
+            Chain.from_string(self.service.home_chain)  # type: ignore[attr-defined]
         ]
         master_safe_native_balance = get_native_balance(master_safe_address)
         master_safe_olas_balance = get_olas_balance(master_safe_address) / 1e18
@@ -194,11 +196,11 @@ class TritonService:
 
         return 0
 
-    def withdraw_rewards(self) -> Tuple[Optional[str], float]:
+    def withdraw_rewards(self) -> List[Tuple[Optional[str], float, str]]:
         """Withdraw staking rewards"""
 
         if not self.withdrawal_address:
-            return None, 0
+            return []
 
         home_chain = Chain.from_string(self.service.home_chain)  # type: ignore[attr-defined]
         master_safe = self.master_wallet.safes[home_chain]
@@ -207,26 +209,56 @@ class TritonService:
             master_safe_olas_balance = get_olas_balance(master_safe)
         except Exception:  # pylint: disable=broad-except
             self.logger.error("Failed to get OLAS balance. %s", traceback.format_exc())
-            return None, 0
+            master_safe_olas_balance = 0
 
-        if not master_safe_olas_balance:
-            self.logger.info("No OLAS to withdraw")
-            return None, 0
-
-        self.logger.info(
-            "Withdrawing %.2f OLAS rewards", master_safe_olas_balance / 1e18
-        )
-        olas_address = OLAS[home_chain]
-
-        try:
-            tx_hash = self.master_wallet.transfer(
-                to=self.withdrawal_address,
-                amount=master_safe_olas_balance,
-                chain=home_chain,
-                asset=olas_address,
+        withdrawals: List[Tuple[Optional[str], float, str]] = []
+        if master_safe_olas_balance:
+            self.logger.info(
+                "Withdrawing %.2f OLAS rewards", master_safe_olas_balance / 1e18
             )
-        except Exception:  # pylint: disable=broad-except
-            self.logger.error("Failed to withdraw OLAS. %s", traceback.format_exc())
-            return None, 0
+            olas_address = OLAS[home_chain]
 
-        return tx_hash, master_safe_olas_balance / 1e18
+            try:
+                tx_hash = self.master_wallet.transfer(
+                    to=self.withdrawal_address,
+                    amount=master_safe_olas_balance,
+                    chain=home_chain,
+                    asset=olas_address,
+                )
+                withdrawals.append(
+                    (tx_hash, master_safe_olas_balance / 1e18, "Master Safe")
+                )
+            except Exception:  # pylint: disable=broad-except
+                self.logger.error("Failed to withdraw OLAS. %s", traceback.format_exc())
+        else:
+            self.logger.info("No Master safe OLAS to withdraw")
+
+        chain = Chain.from_string(self.service.home_chain)  # type: ignore[attr-defined]
+        ledger_api = get_default_ledger_api(chain=chain)
+        try:
+            service_safe_olas_balance = get_olas_balance(self.service_safe) / 1e18
+            if service_safe_olas_balance > 0:
+                self.logger.info(
+                    "Withdrawing %s OLAS from safe on %s to %s",
+                    service_safe_olas_balance,
+                    chain.value,
+                    self.withdrawal_address,
+                )
+                ethereum_crypto = self.service_manager.keys_manager.get_crypto_instance(
+                    self.service.agent_addresses[0]
+                )
+                tx_hash = transfer_erc20_from_safe(
+                    ledger_api=ledger_api,
+                    crypto=ethereum_crypto,
+                    safe=self.service_safe,
+                    token=OLAS[chain],
+                    to=self.withdrawal_address,
+                    amount=service_safe_olas_balance * 1e18,
+                )
+                withdrawals.append((tx_hash, service_safe_olas_balance, "Service Safe"))
+        except Exception:  # pylint: disable=broad-except
+            self.logger.error(
+                "Failed to withdraw OLAS from service safe. %s", traceback.format_exc()
+            )
+
+        return withdrawals
