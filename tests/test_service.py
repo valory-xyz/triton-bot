@@ -291,7 +291,7 @@ class TestTritonService:
         
         result = service.withdraw_rewards()
         
-        assert result == (None, 0)
+        assert result == []
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
     @patch('triton.service.get_olas_balance')
@@ -302,7 +302,7 @@ class TestTritonService:
         service = TritonService(self.mock_operate, "test_config_id")
         result = service.withdraw_rewards()
         
-        assert result == (None, 0)
+        assert result == []
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
     @patch('triton.service.get_olas_balance')
@@ -316,8 +316,8 @@ class TestTritonService:
         service.logger.error = MagicMock()
         result = service.withdraw_rewards()
         
-        assert result == (None, 0)
-        service.logger.error.assert_called_once()
+        assert result == []
+        service.logger.error.assert_called()
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
     @patch('triton.service.get_olas_balance')
@@ -330,7 +330,7 @@ class TestTritonService:
         service = TritonService(self.mock_operate, "test_config_id")
         result = service.withdraw_rewards()
         
-        assert result == ("0xabcdef1234567890", 1.0)
+        assert result == [("0xabcdef1234567890", 1.0, "Master Safe")]
         self.mock_master_wallet.transfer.assert_called_once()
     
     @patch.dict(os.environ, {"WITHDRAWAL_ADDRESS": "0x1111111111111111111111111111111111111111"})
@@ -347,8 +347,8 @@ class TestTritonService:
         service.logger.error = MagicMock()
         result = service.withdraw_rewards()
         
-        assert result == (None, 0)
-        service.logger.error.assert_called_once()
+        assert result == []
+        service.logger.error.assert_called()
 
 
 class TestTritonServiceIntegration:
