@@ -230,9 +230,11 @@ class TestTritonService:
     
     @patch('triton.service.get_olas_balance')
     @patch('triton.service.get_native_balance')
-    def test_check_balance_success(self, mock_get_native_balance, mock_get_olas_balance):
+    @patch('triton.service.get_wrapped_native_balance')
+    def test_check_balance_success(self, mock_get_wrapped_native_balance, mock_get_native_balance, mock_get_olas_balance):
         """Test check_balance method success"""
         mock_get_native_balance.side_effect = [1.0, 2.0, 3.0, 4.0]  # agent, service, master eoa, master safe
+        mock_get_wrapped_native_balance.return_value = 1.0
         mock_get_olas_balance.return_value = 5000000000000000000  # 5 OLAS in wei
         
         # Mock master wallet properties
@@ -244,10 +246,12 @@ class TestTritonService:
         
         assert result["agent_eoa_native_balance"] == 1.0
         assert result["service_safe_native_balance"] == 2.0
+        assert result["service_safe_wrapped_native_balance"] == 1.0
         assert result["master_eoa_native_balance"] == 3.0
         assert result["master_safe_native_balance"] == 4.0
         assert result["service_safe_olas_balance"] == 5.0  # 5 OLAS
         assert mock_get_native_balance.call_count == 4
+        assert mock_get_wrapped_native_balance.call_count == 1
     
     def test_check_balance_no_instances(self):
         """Test check_balance method when no instances exist"""
