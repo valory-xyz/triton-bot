@@ -33,7 +33,7 @@ Point triton to all your trader_quickstart folder locations (they have to contai
 1. Clone the repo:
 
     ```bash
-    git clone git@github.com:OjusWiZard/triton-bot.git
+    git clone https://github.com/valory-xyz/triton-bot.git
     cd triton
     ```
 
@@ -66,6 +66,7 @@ Point triton to all your trader_quickstart folder locations (they have to contai
     - `AUTOCLAIM_HOUR_UTC`: UTC hour for the autoclaim task to run.
     - `LOCAL_TIMEZONE`: Local timezone for the time shown in the alerts.
 
+    Make sure you start your bot by sending `/start` command to it on Telegram.
 
 4. Edit `config.yaml` and add the path to your trader_quickstart folders. Multiple instances can be added.
 
