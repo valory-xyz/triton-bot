@@ -118,6 +118,9 @@ Next epoch: {status['epoch_end']}"""
             balances = service.check_balance()
             agent_native_balance = balances["agent_eoa_native_balance"]
             safe_native_balance = balances["service_safe_native_balance"]
+            safe_wrapped_native_balance = balances[
+                "service_safe_wrapped_native_balance"
+            ]
             safe_olas_balance = balances["service_safe_olas_balance"]
             master_eoa_native_balance = balances["master_eoa_native_balance"]
             master_safe_native_balance = balances["master_safe_native_balance"]
@@ -131,7 +134,7 @@ Next epoch: {status['epoch_end']}"""
                 + escape_markdown_v2(service_name)
                 + r"]"
                 + f"\n[Agent EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.agent_address)}) = {agent_native_balance:g} xDAI"  # noqa: E501
-                + f"\n[Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.service_safe)}) = {safe_native_balance:g} xDAI  {safe_olas_balance:g} OLAS"  # noqa: E501
+                + f"\n[Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.service_safe)}) = {safe_native_balance:g} xDAI  {safe_wrapped_native_balance:g} wxDAI  {safe_olas_balance:g} OLAS"  # noqa: E501
                 + f"\n[Master EOA]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.crypto.address)}) = {master_eoa_native_balance:g} xDAI"  # noqa: E501
                 + f"\n[Master Safe]({GNOSISSCAN_ADDRESS_URL.format(address=service.master_wallet.safes[Chain.from_string(service.service.home_chain)])}) = {master_safe_native_balance:g} xDAI  {master_safe_olas_balance:g} OLAS"  # type: ignore[attr-defined]  # noqa: E501
             )
@@ -283,6 +286,9 @@ Next epoch: {status['epoch_end']}"""
             balances = triton_service.check_balance()
             agent_native_balance = balances["agent_eoa_native_balance"]
             safe_native_balance = balances["service_safe_native_balance"]
+            safe_wrapped_native_balance = balances[
+                "service_safe_wrapped_native_balance"
+            ]
             master_safe_native_balance = balances["master_safe_native_balance"]
 
             if triton_service.master_wallet.safes is None:
@@ -304,8 +310,11 @@ Next epoch: {status['epoch_end']}"""
                     disable_web_page_preview=True,
                 )
 
-            if safe_native_balance < SAFE_BALANCE_THRESHOLD:
-                message = f"[{service_name}] [Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=triton_service.service_safe)}) balance is {safe_native_balance:g} xDAI"  # noqa: E501
+            if (
+                safe_native_balance + safe_wrapped_native_balance
+                < SAFE_BALANCE_THRESHOLD
+            ):
+                message = f"[{service_name}] [Service Safe]({GNOSISSCAN_ADDRESS_URL.format(address=triton_service.service_safe)}) balance is {safe_native_balance:g} xDAI  {safe_wrapped_native_balance:g} wxDAI"  # noqa: E501
                 await context.bot.send_message(
                     chat_id=CHAT_ID,
                     text=message,

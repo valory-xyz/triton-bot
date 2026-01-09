@@ -15,6 +15,8 @@ import dotenv
 import pytz
 import requests
 from operate.constants import IPFS_ADDRESS
+from operate.ledger.profiles import WRAPPED_NATIVE_ASSET
+from operate.operate_types import ChainType
 from web3 import Web3
 from web3.contract import Contract
 from web3.exceptions import ABIFunctionNotFound, ContractLogicError
@@ -57,6 +59,19 @@ def load_contract(
         address=web3.to_checksum_address(contract_address), abi=contract_abi
     )
     return contract
+
+
+def get_wrapped_native_balance(address: str, chain: ChainType) -> float:
+    """Get the wrapped native balance"""
+    return (
+        load_contract(WRAPPED_NATIVE_ASSET[chain], "erc20", has_abi_key=False)
+        .functions.balanceOf(address)
+        .call()
+        / 10
+        ** load_contract(WRAPPED_NATIVE_ASSET[chain], "erc20", has_abi_key=False)
+        .functions.decimals()
+        .call()
+    )
 
 
 def get_olas_balance(address: str):

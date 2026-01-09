@@ -129,6 +129,7 @@ class TestTritonBot:
         service.check_balance.return_value = {
             "agent_eoa_native_balance": 0.5,
             "service_safe_native_balance": 2.0,
+            "service_safe_wrapped_native_balance": 1.0,
             "service_safe_olas_balance": 100.0,
             "master_eoa_native_balance": 1.5,
             "master_safe_native_balance": 3.0,
@@ -243,13 +244,13 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
             parse_mode=ParseMode.MARKDOWN,
             text="""\\[operator1-service]
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
-[Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
+[Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  1 wxDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
 [Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS
 
 \\[operator2-service]
 [Agent EOA](https://gnosisscan.io/address/0xagent123) = 0.5 xDAI
-[Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  100 OLAS
+[Service Safe](https://gnosisscan.io/address/0xsafe456) = 2 xDAI  1 wxDAI  100 OLAS
 [Master EOA](https://gnosisscan.io/address/0xmaster789) = 1.5 xDAI
 [Master Safe](https://gnosisscan.io/address/0xmastersafe012) = 3 xDAI  10 OLAS"""
         )
@@ -361,22 +362,22 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
         mock_update.message.reply_text.assert_called_once_with("No scheduled jobs")
 
     @pytest.mark.parametrize(
-        "agent_balance,safe_balance,master_balance,agent_threshold,safe_threshold,master_threshold,expected_messages",
+        "agent_balance,safe_balance,wrapped_safe_balance,master_balance,agent_threshold,safe_threshold,master_threshold,expected_messages",
         [
             # All monitored balances below their thresholds
-            (0.05, 0.5, 4.0, 0.1, 1.0, 5.0, 6),
+            (0.05, 0.2, 0.3, 4.0, 0.1, 1.0, 5.0, 6),
             # Only agent balance below threshold
-            (0.05, 2.0, 6.0, 0.1, 1.0, 5.0, 2),
+            (0.05, 1.0, 1.0, 6.0, 0.1, 1.0, 5.0, 2),
             # Only service safe balance below threshold
-            (0.5, 0.5, 6.0, 0.1, 1.0, 5.0, 2),
+            (0.5, 0.2, 0.3, 6.0, 0.1, 1.0, 5.0, 2),
             # Only master safe balance below threshold
-            (0.5, 2.0, 4.0, 0.1, 1.0, 5.0, 2),
+            (0.5, 2.0, 0.0, 4.0, 0.1, 1.0, 5.0, 2),
             # All balances above thresholds
-            (0.5, 2.0, 6.0, 0.1, 1.0, 5.0, 0),
+            (0.5, 0.0, 2.0, 6.0, 0.1, 1.0, 5.0, 0),
             # Edge case: exactly at thresholds
-            (0.1, 1.0, 5.0, 0.1, 1.0, 5.0, 0),
+            (0.1, 0.2, 0.8, 5.0, 0.1, 1.0, 5.0, 0),
             # Edge case: just below thresholds
-            (0.099, 0.999, 4.999, 0.1, 1.0, 5.0, 6),
+            (0.099, 0.9, 0.09999, 4.999, 0.1, 1.0, 5.0, 6),
         ],
     )
     def test_balance_check_job_low_balance(
@@ -386,6 +387,7 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
         mock_service,
         agent_balance,
         safe_balance,
+        wrapped_safe_balance,
         master_balance,
         agent_threshold,
         safe_threshold,
@@ -398,6 +400,7 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
         mock_service.check_balance.return_value = {
             "agent_eoa_native_balance": agent_balance,
             "service_safe_native_balance": safe_balance,
+            "service_safe_wrapped_native_balance": wrapped_safe_balance,
             "service_safe_olas_balance": 100.0,
             "master_eoa_native_balance": 1.5,
             "master_safe_native_balance": master_balance,
@@ -440,7 +443,7 @@ Total rewards = 231 OLAS (21 accrued + 200 in agent safes + 10 in master safes) 
             if safe_balance < safe_threshold:
                 for operator in mock_config['operators']:
                     assert (
-                        f"[{operator}-service] [Service Safe](https://gnosisscan.io/address/{mock_service.service_safe}) balance is {safe_balance:g} xDAI"
+                        f"[{operator}-service] [Service Safe](https://gnosisscan.io/address/{mock_service.service_safe}) balance is {safe_balance:g} xDAI  {wrapped_safe_balance:g} wxDAI"
                         in sent_messages
                     ), f"Expected safe balance message for balance {safe_balance}"
 
